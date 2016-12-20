@@ -1212,14 +1212,22 @@ namespace TfsBuildManager.Views
 
                     using (new WaitCursor())
                     {
+                        var project = "";
                         var projects = this.repository.GetProjectsToBuild(item.Uri).ToList();
                         if (!projects.Any())
                         {
-                            this.ShowInvalidActionMessage("Clone Build to Branch", "Could not locate any projects in the selected build(s)");
-                            return;
-                        }
+                            var mapping = this.repository.GetBuildServer().GetBuildDefinition(item.Uri).Workspace.Mappings;
+                            if (!mapping.Any())
+                            {
+                                this.ShowInvalidActionMessage("Clone Build to Branch", "Could not locate any projects in the selected build(s)");
+                                return;
+                            }
 
-                        var project = projects.First();
+                            project = mapping.First().ServerItem;
+                        }
+                        else
+                            project = projects.First();
+
                         var branchObject = this.repository.GetBranchObjectForItem(project);
                         if (branchObject == null)
                         {
