@@ -1009,6 +1009,13 @@ namespace TfsBuildManager.Repository
             {
                 CloneLinuxProjects(sourceName, targetName, parameters);
             }
+
+            if (parameters.ContainsKey("CT_Package_Branchname"))
+            {
+                parameters["CT_Package_Branchname"] = ReplaceWithCaseIgnored(parameters["CT_Package_Branchname"] as string,
+                    sourceName.Substring(sourceName.LastIndexOf("/", StringComparison.Ordinal) + 1),
+                    targetName.Substring(targetName.LastIndexOf("/", StringComparison.Ordinal) + 1));
+            }
         }
 
         private static void CloneLinuxProjects(string sourceName, string targetName, IDictionary<string, object> parameters)
