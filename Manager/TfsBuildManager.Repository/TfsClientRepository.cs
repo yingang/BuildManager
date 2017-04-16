@@ -645,7 +645,7 @@ namespace TfsBuildManager.Repository
             newBuildDefinition.QueueStatus = bd.QueueStatus;
             CloneWorkspaceMappings(rootBranch, targetBranch, bd, newBuildDefinition);
             newBuildDefinition.BuildController = bd.BuildController;
-            CloneDropLocation(sourceBranchName, branchName, bd, newBuildDefinition);
+            CloneDropLocation(sourceBranchName, branchName, bd, newBuildDefinition, false);
             CloneBuildSchedule(bd, newBuildDefinition);
             newBuildDefinition.ContinuousIntegrationQuietPeriod = bd.ContinuousIntegrationQuietPeriod;
             this.CloneBuildProcessTemplate(rootBranch, targetBranch, bd, newBuildDefinition);
@@ -1004,6 +1004,35 @@ namespace TfsBuildManager.Repository
             {
                 CloneProjectsToBuild(sourceName, targetName, parameters);
             }
+
+            if (parameters.ContainsKey("MCSF_Build_Branchnames_linux"))
+            {
+                CloneLinuxProjects(sourceName, targetName, parameters);
+            }
+
+            if (parameters.ContainsKey("CT_Package_Branchname"))
+            {
+                parameters["CT_Package_Branchname"] = ReplaceWithCaseIgnored(parameters["CT_Package_Branchname"] as string,
+                    sourceName.Substring(sourceName.LastIndexOf("/", StringComparison.Ordinal) + 1),
+                    targetName.Substring(targetName.LastIndexOf("/", StringComparison.Ordinal) + 1));
+            }
+        }
+
+        private static void CloneLinuxProjects(string sourceName, string targetName, IDictionary<string, object> parameters)
+        {
+            // JUST for UIH's build system :(
+            // handle linux projects -- without the prefix "$/CT/"
+            int offset = "$/CT/".Length;
+            string chkBranch = sourceName.Substring(offset);
+            string setBranch = targetName.Substring(offset);
+            var projects = parameters["MCSF_Build_Branchnames_linux"] as string[];
+            if (projects != null)
+            {
+                for (int i = 0; i < projects.Count(); i++)
+                {
+                    projects[i] = ReplaceWithCaseIgnored(projects[i], chkBranch, setBranch);
+                }
+            }
         }
 
         private static void CloneProjectsToBuild(string sourceName, string targetName, IDictionary<string, object> parameters)
@@ -1069,9 +1098,10 @@ namespace TfsBuildManager.Repository
             {
                 if (parameters[keys[idx]] is string)
                 {
-                    if ((parameters[keys[idx]] as string).IndexOf(sourceName, StringComparison.OrdinalIgnoreCase) >= 0)
+                    var param = (parameters[keys[idx]] as string);
+                    if (param.IndexOf(sourceName, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        parameters[keys[idx]] = ReplaceWithCaseIgnored((parameters[keys[idx]] as string), sourceName, targetName);
+                        parameters[keys[idx]] = ReplaceWithCaseIgnored(param, sourceName, targetName);
                     }
                 }
             }
