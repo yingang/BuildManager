@@ -52,7 +52,7 @@ namespace TfsBuildManager.Views.ViewModels
             {
                 var old = this.selectedBranch;
                 this.selectedBranch = value;
-                this.NewName = this.originalName + "." + Path.GetFileName(value.Path);
+                SetNewName();
                 this.NotifyPropertyChanged("NewName");
                 if (value != old)
                 {
@@ -67,6 +67,59 @@ namespace TfsBuildManager.Views.ViewModels
             {
                 return this.SelectedBranch != null && !string.IsNullOrEmpty(this.NewName);
             }
+        }
+
+        public string SetNewName()
+        {
+
+            string sourceType = this.originalName.Split('_')[0];
+            string sourceBranchName = this.originalName.Split('_')[1];
+            string targetBranchPath = this.selectedBranch.Path;
+            string targetBranchName = Path.GetFileName(targetBranchPath);
+
+            if (sourceType == "Unity")
+            {
+                SetMainBranch(sourceType,targetBranchPath, targetBranchName);
+            }
+            else if (sourceType == "BRANCHES" || sourceType == "Release")
+            {
+                SetOtherBranch(sourceType, sourceBranchName, targetBranchPath, targetBranchName);
+            }
+            else
+            {
+                this.NewName = this.originalName + "." + targetBranchName;
+            }
+            return this.NewName;
+        }
+
+        public string SetMainBranch(string sourceBranchType, string targetBranchPath, string targetBranchFile)
+        {
+            if (targetBranchPath.Contains("$/CT/BRANCHES/Feature"))
+            {
+                this.NewName = this.originalName.Replace(sourceBranchType, "BRANCHES" + "_" + targetBranchFile);
+            }
+            else if (targetBranchPath.Contains("$/CT/BRANCHES/Release/"))
+            {
+                this.NewName = this.originalName.Replace(sourceBranchType, "Release" + "_" + targetBranchFile);
+            }
+            else if (targetBranchPath.Contains("$/CT/BRANCHES/Users"))
+            {
+                this.NewName = this.originalName.Replace(sourceBranchType, "User" + "_" + targetBranchFile);
+            }
+            return this.NewName;
+        }
+
+        public string SetOtherBranch(string sourceBranchType, string sourceBranchName, string targetBranchPath, string targetBranchName)
+        {
+            if (targetBranchPath.Contains("$/CT/BRANCHES/Feature") || targetBranchPath.Contains("$/CT/BRANCHES/Release"))
+            {
+                this.NewName = this.originalName.Replace(sourceBranchName, targetBranchName);
+            }
+            else if (targetBranchPath.Contains("$/CT/BRANCHES/Users"))
+            {
+                this.NewName = this.originalName.Replace(sourceBranchType + "_" + sourceBranchName, "Users" + "_" + targetBranchName);
+            }
+            return this.NewName;
         }
     }
 

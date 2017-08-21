@@ -30,6 +30,7 @@ namespace TfsBuildManager.Repository
         private const string ConfigurationFolderPath = "ConfigurationFolderPath";
         private const string BuildSettings = "BuildSettings";
         private const string TestSpecs = "TestSpecs";
+        private const string LinuxSettings = "MCSF_Build_Branchnames_linux";
         private readonly IBuildServer buildServer;
         private TfsTeamProjectCollection collection;
         private WorkItemStore workItemStore;
@@ -598,6 +599,7 @@ namespace TfsBuildManager.Repository
 
             while (vcs.QueryMergeRelationships(item).Length > 0)
             {
+                int itemLength = vcs.QueryMergeRelationships(item).Length;
                 foundBranches = true;
                 lastItemWithBranches = item;
                 int indexOfLastSlash = item.LastIndexOf('/');
@@ -626,7 +628,16 @@ namespace TfsBuildManager.Repository
 
             var vcs = this.collection.GetService<VersionControlServer>();
             var relations = vcs.QueryMergeRelationships(item);
-            childBranches.AddRange(relations.Select(r => new Branch { Name = r.Item, ServerPath = r.Item }));
+            List<ItemIdentifier> relationsList = new List<ItemIdentifier>();
+            for (int i = 0; i < relations.Length; i++)
+            {
+                if (relations[i].IsDeleted == false)
+                {
+                    relationsList.Add(relations[i]);
+                }
+            }
+
+            childBranches.AddRange(relationsList.Select(r => new Branch { Name = r.Item, ServerPath = r.Item }));
             return childBranches;
         }
 
@@ -718,6 +729,35 @@ namespace TfsBuildManager.Repository
 
             newBuildDefinition.Save();
             return newBuildDefinition.ToString();
+        }
+
+        public string GetLinuxGated(Uri buildDefinition)
+        {
+            var bd = this.buildServer.GetBuildDefinition(buildDefinition);
+            var parameters = WorkflowHelpers.DeserializeProcessParameters(bd.ProcessParameters);
+            var projects = parameters[LinuxSettings] as string[];
+            List<string> replacedLinux = new List<string>();
+            if (projects != null)
+            {
+                for (int i = 0; i < projects.Length; i++)
+                {
+
+                    if (projects[i].StartsWith("\"", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string sourceNoQute = Regex.Unescape(projects[i]);
+                        int firstIndexDoubleQute = sourceNoQute.IndexOf('\"');
+                        string replacedFirst = sourceNoQute.Substring(firstIndexDoubleQute+1);
+                        int lastIndexDoubleQuto = replacedFirst.LastIndexOf('"');
+                        string replacedLast = "$/" + bd.TeamProject+"/" + replacedFirst.Substring(0, lastIndexDoubleQuto);
+                        replacedLinux.Add(replacedLast);
+                    }
+                }
+                return replacedLinux.First();
+            }
+            else
+            {
+                return projects[0];
+            }
         }
 
         /// <summary>
@@ -1004,10 +1044,9 @@ namespace TfsBuildManager.Repository
             {
                 CloneProjectsToBuild(sourceName, targetName, parameters);
             }
-
-            if (parameters.ContainsKey("MCSF_Build_Branchnames_linux"))
+            if (parameters.ContainsKey(LinuxSettings))
             {
-                CloneLinuxProjects(sourceName, targetName, parameters);
+                CloneLinuxProjectsToBuild(sourceName, targetName, parameters);
             }
 
             if (parameters.ContainsKey("CT_Package_Branchname"))
@@ -1018,14 +1057,15 @@ namespace TfsBuildManager.Repository
             }
         }
 
-        private static void CloneLinuxProjects(string sourceName, string targetName, IDictionary<string, object> parameters)
+        private static void CloneLinuxProjectsToBuild(string sourceName, string targetName, IDictionary<string, object> parameters)
         {
             // JUST for UIH's build system :(
             // handle linux projects -- without the prefix "$/CT/"
-            int offset = "$/CT/".Length;
+            string[] splitString = sourceName.Split('/');
+            int offset = splitString[0].Length + splitString[1].Length + 2;
             string chkBranch = sourceName.Substring(offset);
             string setBranch = targetName.Substring(offset);
-            var projects = parameters["MCSF_Build_Branchnames_linux"] as string[];
+            var projects = parameters[LinuxSettings] as string[];
             if (projects != null)
             {
                 for (int i = 0; i < projects.Count(); i++)
@@ -1086,10 +1126,11 @@ namespace TfsBuildManager.Repository
             {
                 if (buildSettings.ProjectsToBuild[i].StartsWith(chkBranch, StringComparison.OrdinalIgnoreCase))
                 {
-                    buildSettings.ProjectsToBuild[i] = ReplaceWithCaseIgnored(buildSettings.ProjectsToBuild[i], chkBranch, setBranch);
+                    buildSettings.ProjectsToBuild[i] = ReplaceWithCaseIgnored(buildSettings.ProjectsToBuild[i], chkBranch, setBranch);                  
                 }
             }
         }
+
 
         private static void CloneStringParameters(string sourceName, string targetName, IDictionary<string, object> parameters)
         {

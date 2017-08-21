@@ -230,6 +230,8 @@ namespace TfsBuildManager.Views
 
         public DateFilterCollection DateFilters { get; private set; }
 
+        public string Project { get; set; }
+
         public BuildFilter SelectedBuildFilter
         {
             get
@@ -1085,16 +1087,6 @@ namespace TfsBuildManager.Views
             return shortest;
         }
 
-        private void ShowNoBranchMessage(string project)
-        {
-            MessageBox.Show(this.owner, "Could not locate branch object for " + project, "Clone Build To Branch", MessageBoxButton.OK, MessageBoxImage.Stop);
-        }
-
-        private void ShowInvalidActionMessage(string action, string message)
-        {
-            MessageBox.Show(this.owner, message, action, MessageBoxButton.OK, MessageBoxImage.Stop);
-        }
-
         private bool ShouldRemove()
         {
             return MessageBox.Show(this.owner, "One or more of the selected build process templates are used by build definitions. Do you want to proceed?", "Remove Build Process Template", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
@@ -1212,28 +1204,17 @@ namespace TfsBuildManager.Views
 
                     using (new WaitCursor())
                     {
-                        var project = "";
                         var projects = this.repository.GetProjectsToBuild(item.Uri).ToList();
                         if (!projects.Any())
                         {
-                            var mapping = this.repository.GetBuildServer().GetBuildDefinition(item.Uri).Workspace.Mappings;
-                            if (!mapping.Any())
-                            {
-                                this.ShowInvalidActionMessage("Clone Build to Branch", "Could not locate any projects in the selected build(s)");
-                                return;
-                            }
-
-                            project = mapping.First().ServerItem;
+                            Uri uri = item.Uri;
+                            this.Project = this.repository.GetLinuxGated(uri);
                         }
                         else
-                            project = projects.First();
-
-                        var branchObject = this.repository.GetBranchObjectForItem(project);
-                        if (branchObject == null)
                         {
-                            this.ShowNoBranchMessage(project);
-                            return;
+                            this.Project = projects.First();
                         }
+                        var branchObject = this.repository.GetBranchObjectForItem(this.Project);
 
                         var childBranches = this.repository.GetChildBranchObjectsForItem(branchObject.ServerPath).ToList();
                         if (!childBranches.Any())

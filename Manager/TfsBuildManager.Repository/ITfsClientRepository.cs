@@ -93,6 +93,8 @@ namespace TfsBuildManager.Repository
 
         string CloneGitBuild(Uri buildDefinition, string newName, bool forceDisabled);
 
+        string GetLinuxGated(Uri buildDefinition);
+
         IEnumerable<Branch> GetChildBranchObjectsForItem(string item);
 
         IBuildServer GetBuildServer();
